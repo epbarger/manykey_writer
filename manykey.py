@@ -9,6 +9,7 @@ import serial
 import serial.tools.list_ports
 import threading
 import bidict
+import time
 
 KEY_TO_HEX_BIDICT = bidict.orderedbidict({
 	"LEFT_CTRL": 0x80,
@@ -46,7 +47,7 @@ KEY_TO_HEX_BIDICT = bidict.orderedbidict({
 	"F10": 0xCB,
 	"F11": 0xCC,
 	"F12": 0xCD,
-	"SPACE": 0x32,
+	"SPACE": 0x20,
 })
 
 class SerialDevicesHelper(threading.Thread):
@@ -112,6 +113,7 @@ class SerialDeviceReadHelper(threading.Thread):
 				while (len(response) == 0 or response[-1] != b'\xff'):
 					byte = serial_connection.read()
 					response.append(byte)
+				# print("read_response: {}".format(response))
 				converted_chars = []
 				for char in response[3:len(response)-1]:
 					if char[0] >= 33 and char[0] <= 126:
@@ -138,8 +140,39 @@ class SerialDeviceWriteHelper(threading.Thread):
 		self.gui = gui
 
 	def run(self):
-		key_lines = self.gui.keys_edit.GetValue().splitlines()
-		print(key_lines)
+		serial_connection = serial.Serial()
+		serial_connection.baudrate = 9600
+		serial_connection.port = self.gui.current_device
+		serial_connection.open()
+		if serial_connection.is_open:
+			key_lines = self.gui.keys_edit.GetValue().splitlines()
+			for index, key_list in enumerate(key_lines):
+				serial_request = [0xEE, 0x01, index]
+				for index, key in enumerate(key_list.split()):
+					if index >= self.gui.max_keys:
+						break
+
+					if len(key) > 1:
+						try:
+							serial_request.append(KEY_TO_HEX_BIDICT[key])
+						except KeyError:
+							continue
+					elif ord(key) >= 33 and ord(key) <= 126:
+						serial_request.append(ord(key))
+					# else:
+						# print("unrecognized character")
+				serial_request.append(0xFF)
+				serial_connection.write(bytearray(serial_request))
+				# print("write {}".format(serial_request))
+				time.sleep(0.1)
+				serial_connection.reset_input_buffer()
+
+			read_helper = SerialDeviceReadHelper(self.gui)
+			read_helper.start()
+			read_helper.join()
+		else:
+			self.gui.SetStatusText("Connection failed")	
+		serial_connection.close()
 
 class GuiFrame(wx.Frame):
 	def __init__(self, *args, **kw):
@@ -189,7 +222,7 @@ class GuiFrame(wx.Frame):
 		device_sizer = wx.BoxSizer(wx.HORIZONTAL)
 		self.device_select = wx.Choice(self.main_panel, choices=[])
 		self.device_select.Bind(wx.EVT_CHOICE, self.selectDevice)
-		device_sizer.Add(self.device_select, proportion=4, flag=wx.ALL, border=5)
+		device_sizer.Add(self.device_select, proportion=3, flag=wx.ALL, border=5)
 		device_refresh_button = wx.Button(self.main_panel, label='Refresh Devices')
 		device_refresh_button.Bind(wx.EVT_BUTTON, self.updateDevices)
 		device_sizer.Add(device_refresh_button, proportion=1, flag=wx.ALL, border=5)		
