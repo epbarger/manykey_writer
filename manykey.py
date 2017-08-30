@@ -50,6 +50,7 @@ KEY_TO_HEX_BIDICT = bidict.orderedbidict({
 	"SPACE": 0x20,
 })
 
+
 class SerialDevicesHelper(threading.Thread):
 	def __init__(self, gui):
 		super(SerialDevicesHelper, self).__init__()
@@ -64,6 +65,7 @@ class SerialDevicesHelper(threading.Thread):
 			device_label = "{} - {}".format(port.device, port.description)
 			self.gui.devices[device_label] = port.device
 			self.gui.device_select.Append(device_label)
+
 
 class SerialDeviceQueryHelper(threading.Thread):
 	def __init__(self, gui):
@@ -84,7 +86,6 @@ class SerialDeviceQueryHelper(threading.Thread):
 				response.append(byte)
 			self.gui.switch_count = response[2][0]
 			self.gui.max_keys = response[3][0]
-			# self.gui.updateKeysPanel()
 			self.gui.SetStatusText("Connected ({} switches, {} keys per switch)".format(self.gui.switch_count, self.gui.max_keys))	
 			
 			if self.gui.keys_edit.CountCharacters(0,100) == 0:
@@ -94,6 +95,7 @@ class SerialDeviceQueryHelper(threading.Thread):
 		else:
 			self.gui.SetStatusText("Connection failed")	
 		serial_connection.close()
+
 
 class SerialDeviceReadHelper(threading.Thread):
 	def __init__(self, gui):
@@ -133,6 +135,7 @@ class SerialDeviceReadHelper(threading.Thread):
 		else:
 			self.gui.SetStatusText("Connection failed")	
 		serial_connection.close()
+
 
 class SerialDeviceWriteHelper(threading.Thread):
 	def __init__(self, gui):
@@ -174,12 +177,10 @@ class SerialDeviceWriteHelper(threading.Thread):
 			self.gui.SetStatusText("Connection failed")	
 		serial_connection.close()
 
+
 class GuiFrame(wx.Frame):
 	def __init__(self, *args, **kw):
-		# ensure the parent's __init__ is called
 		super(GuiFrame, self).__init__(*args, **kw)
-		self.CreateStatusBar()
-
 
 		self.switch_count = 0
 		self.max_keys = 0
@@ -188,9 +189,9 @@ class GuiFrame(wx.Frame):
 		self.devices = {}
 		self.line_count = None
 
-		# create a panel in the frame
-		self.main_panel = wx.Panel(self)
 
+		self.CreateStatusBar()
+		self.main_panel = wx.Panel(self)
 		main_sizer = wx.BoxSizer(wx.VERTICAL)
 
 
@@ -240,23 +241,17 @@ class GuiFrame(wx.Frame):
 
 
 		# Key Selection Panel
-		# self.keys_panel = wx.Panel(self.main_panel)
-		# main_sizer.Add(self.keys_panel, proportion=1, flag=wx.EXPAND)
-		# self.updateKeysPanel()
-		# self.keys_edit = wx.TextCtrl(self.main_panel, style=wx.TE_MULTILINE | wx.TE_DONTWRAP)
 		self.keys_edit = wx.stc.StyledTextCtrl(self.main_panel)
 		self.keys_edit.SetMarginWidth(1, 55)
 		self.keys_edit.StyleSetFont(1, self.keys_edit.StyleGetFont(0))
-		self.keys_edit.SetMarginType(1, wx.stc.STC_MARGIN_RTEXT) # wx.stc.STC_MARGIN_NUMBER)
+		self.keys_edit.SetMarginType(1, wx.stc.STC_MARGIN_RTEXT)
 		self.keys_edit.SetMarginCursor(1, 0)
 		self.keys_edit.SetMarginLeft(5)
 		self.keys_edit.SetScrollWidth(5)
 		self.keys_edit.SetScrollWidthTracking(True)
 		self.keys_edit.Bind(wx.stc.EVT_STC_CHANGE, self.updateMargins)
-
-
-
 		main_sizer.Add(self.keys_edit, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
+
 
 		# Controls
 		controls_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -272,7 +267,6 @@ class GuiFrame(wx.Frame):
 		main_sizer.Add(controls_sizer, proportion=0, flag=wx.EXPAND)
 
 
-
 		self.main_panel.SetSizer(main_sizer)
 		# main_sizer.Fit(self.main_panel)
 
@@ -282,24 +276,6 @@ class GuiFrame(wx.Frame):
 		# and a status bar
 		self.SetStatusText("No device connected")
 		self.clearKeys(None)
-
-
-	# def updateKeysPanel(self):
-		# wx.StaticText(self.keys_panel, label="switch_count = {}".format(self.switch_count))
-		# keys_sizer = wx.BoxSizer(wx.VERTICAL)
-
-		# for index in range(0, self.switch_count):
-		# 	self.switch_text_boxes.append(wx.TextCtrl(self.keys_panel))
-
-		# for index, switch_text_box in enumerate(self.switch_text_boxes):
-		# 	switch_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		# 	switch_sizer.Add(wx.StaticText(self.keys_panel, label="Switch {}".format(index)), proportion=1, flag=wx.CENTER | wx.ALL, border=5)
-		# 	switch_sizer.Add(switch_text_box, proportion=6, flag=wx.CENTER | wx.ALL, border=5)
-		# 	switch_sizer.Add(wx.Button(self.keys_panel, label="Record"), proportion=1, flag=wx.CENTER | wx.ALL, border=5)
-		# 	keys_sizer.Add(switch_sizer, proportion=1, flag=wx.EXPAND)
-		# self.keys_panel.SetSizer(keys_sizer)
-		# self.keys_panel.Layout()
-		# keys_sizer.Fit(self.keys_panel)
 
 
 	def updateDevices(self, event):
@@ -317,18 +293,21 @@ class GuiFrame(wx.Frame):
 		except KeyError:
 			self.SetStatusText("No device connected")
 
+
 	def readDeviceKeys(self, event):
 		SerialDeviceReadHelper(self).start()
+
 
 	def clearKeys(self, event):
 		self.keys_edit.ClearAll()
 		self.keys_edit.MarginSetText(0, "Switch 0")
 		self.keys_edit.MarginSetStyle(0, 1)
 
+
 	def writeKeys(self, event):
 		SerialDeviceWriteHelper(self).start()
 
-	
+
 	def updateMargins(self, event):
 		lc = self.keys_edit.GetLineCount()
 		if lc != self.line_count:
@@ -341,66 +320,21 @@ class GuiFrame(wx.Frame):
 
 
 	def makeMenuBar(self):
-		"""
-		A menu bar is composed of menus, which are composed of menu items.
-		This method builds a set of menus and binds handlers to be called
-		when the menu item is selected.
-		"""
-
-		# Make a file menu with Hello and Exit items
-		# fileMenu = wx.Menu()
-		# The "\t..." syntax defines an accelerator key that also triggers
-		# the same event
-		# helloItem = fileMenu.Append(-1, "&Hello...\tCtrl-H",
-				# "Help string shown in status bar for this menu item")
-		# fileMenu.AppendSeparator()
-		# When using a stock ID we don't need to specify the menu item's
-		# label
-		# exitItem = fileMenu.Append(wx.ID_EXIT)
-
-		# Now a help menu for the about item
 		helpMenu = wx.Menu()
 		aboutItem = helpMenu.Append(wx.ID_ABOUT)
-
-		# Make the menu bar and add the two menus to it. The '&' defines
-		# that the next letter is the "mnemonic" for the menu item. On the
-		# platforms that support it those letters are underlined and can be
-		# triggered from the keyboard.
 		menuBar = wx.MenuBar()
-		# menuBar.Append(fileMenu, "&File")
 		menuBar.Append(helpMenu, "&Help")
-
-		# Give the menu bar to the frame
 		self.SetMenuBar(menuBar)
-
-		# Finally, associate a handler function with the EVT_MENU event for
-		# each of the menu items. That means that when that menu item is
-		# activated then the associated handler function will be called.
-		# self.Bind(wx.EVT_MENU, self.OnHello, helloItem)
-		# self.Bind(wx.EVT_MENU, self.OnExit,  exitItem)
 		self.Bind(wx.EVT_MENU, self.OnAbout, aboutItem)
 
 
-	# def OnExit(self, event):
-	# 	"""Close the frame, terminating the application."""
-	# 	self.Close(True)
-
-
-	# # def OnHello(self, event):
-	# #     """Say hello to the user."""
-	# #     wx.MessageBox("Hello again from wxPython")
-
-
 	def OnAbout(self, event):
-		"""Display an About Dialog"""
-		wx.MessageBox("About message here",
+		wx.MessageBox("WIP (Unversioned)",
 					  "ManyKey Writer",
 					  wx.OK|wx.ICON_INFORMATION)
 
 
 if __name__ == '__main__':
-	# When this module is run (not imported) then create the app, the
-	# frame, show it, and start the event loop.
 	app = wx.App()
 	frm = GuiFrame(None, title='ManyKey Writer', size=(500,400))
 	frm.Show()
