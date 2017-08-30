@@ -309,9 +309,12 @@ class GuiFrame(wx.Frame):
 
 
 	def clearKeys(self, event):
-		self.keys_edit.ClearAll()
-		self.keys_edit.MarginSetText(0, "Switch 0")
-		self.keys_edit.MarginSetStyle(0, 1)
+		newlines = []
+		for index in range(0, self.switch_count - 1):
+			newlines.append("\n")
+		self.keys_edit.SetText("".join(newlines))
+		# self.keys_edit.MarginSetText(0, "Switch 0")
+		# self.keys_edit.MarginSetStyle(0, 1)
 
 
 	def writeKeys(self, event):
