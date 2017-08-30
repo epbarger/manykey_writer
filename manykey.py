@@ -86,6 +86,8 @@ class SerialDeviceQueryHelper(threading.Thread):
 				response.append(byte)
 			self.gui.switch_count = response[2][0]
 			self.gui.max_keys = response[3][0]
+			self.gui.write_button.Enable()
+			self.gui.read_button.Enable()
 			self.gui.SetStatusText("Connected ({} switches, {} keys per switch)".format(self.gui.switch_count, self.gui.max_keys))	
 			
 			if self.gui.keys_edit.CountCharacters(0,100) == 0:
@@ -133,7 +135,7 @@ class SerialDeviceReadHelper(threading.Thread):
 			keys_edit = "\n".join(keys_edit)
 			self.gui.keys_edit.SetText(keys_edit)
 		else:
-			self.gui.SetStatusText("Connection failed")	
+			self.gui.SetStatusText("Connection failed")
 		serial_connection.close()
 
 
@@ -149,6 +151,8 @@ class SerialDeviceWriteHelper(threading.Thread):
 		serial_connection.open()
 		if serial_connection.is_open:
 			key_lines = self.gui.keys_edit.GetValue().splitlines()
+			while len(key_lines) < self.gui.switch_count:
+				key_lines.append('')
 			for index, key_list in enumerate(key_lines):
 				serial_request = [0xEE, 0x01, index]
 				for index, key in enumerate(key_list.split()):
@@ -255,27 +259,31 @@ class GuiFrame(wx.Frame):
 
 		# Controls
 		controls_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		read_button = wx.Button(self.main_panel, label='Read')
-		read_button.Bind(wx.EVT_BUTTON, self.readDeviceKeys)
-		controls_sizer.Add(read_button, proportion=1, flag=wx.ALL, border=5)
 		clear_button = wx.Button(self.main_panel, label='Clear')
 		clear_button.Bind(wx.EVT_BUTTON, self.clearKeys)
 		controls_sizer.Add(clear_button, proportion=1, flag=wx.ALL, border=5)
-		write_button = wx.Button(self.main_panel, label='Write')
-		write_button.Bind(wx.EVT_BUTTON, self.writeKeys)
-		controls_sizer.Add(write_button, proportion=1, flag=wx.ALL, border=5)
+		self.read_button = wx.Button(self.main_panel, label='Read')
+		self.read_button.Bind(wx.EVT_BUTTON, self.readDeviceKeys)
+		controls_sizer.Add(self.read_button, proportion=1, flag=wx.ALL, border=5)
+		self.write_button = wx.Button(self.main_panel, label='Write')
+		self.write_button.Bind(wx.EVT_BUTTON, self.writeKeys)
+		controls_sizer.Add(self.write_button, proportion=1, flag=wx.ALL, border=5)
 		main_sizer.Add(controls_sizer, proportion=0, flag=wx.EXPAND)
 
 
 		self.main_panel.SetSizer(main_sizer)
 		# main_sizer.Fit(self.main_panel)
 
-		# create a menu bar
-		self.makeMenuBar()
 
-		# and a status bar
-		self.SetStatusText("No device connected")
+		self.makeMenuBar()
 		self.clearKeys(None)
+		self.SetStatusText("No device connected")
+		self.disconnectDevice()
+
+	def disconnectDevice(self):
+		self.write_button.Disable()
+		self.read_button.Disable()
+		self.current_device = None
 
 
 	def updateDevices(self, event):
@@ -285,6 +293,7 @@ class GuiFrame(wx.Frame):
 
 	def selectDevice(self, event):
 		try:
+			self.disconnectDevice()
 			device = self.devices[self.device_select.GetStringSelection()]
 			self.current_device = device
 			self.SetStatusText("Connecting to {}...".format(device))
@@ -292,6 +301,7 @@ class GuiFrame(wx.Frame):
 
 		except KeyError:
 			self.SetStatusText("No device connected")
+			self.disconnectDevice()
 
 
 	def readDeviceKeys(self, event):
