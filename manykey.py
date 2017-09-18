@@ -5,8 +5,11 @@ ManyKey Writer
 
 import wx
 import wx.stc
+import webbrowser
 from wx.lib.pubsub import pub
 from serial_helpers import *
+
+VERSION = "0.1 (Alpha)"
 
 class GuiFrame(wx.Frame):
     def __init__(self, *args, **kw):
@@ -24,21 +27,6 @@ class GuiFrame(wx.Frame):
         self.CreateStatusBar()
         self.main_panel = wx.Panel(self)
         main_sizer = wx.BoxSizer(wx.VERTICAL)
-
-
-        # Title Text / Logo
-        title_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        title = wx.StaticText(self.main_panel, label="ManyKey Writer")
-        font = title.GetFont()
-        font.PointSize += 26
-        font = font.Bold()
-        title.SetFont(font)
-        title_sizer.Add(title, proportion=0, flag=wx.ALL, border=5)
-        main_sizer.Add(title_sizer, proportion=0, flag=wx.CENTER)
-
-
-        # Horizontal Line
-        main_sizer.Add(wx.StaticLine(self.main_panel), proportion=0, flag=wx.ALL|wx.EXPAND, border=5)
 
 
         # Select Device Title
@@ -165,16 +153,22 @@ class GuiFrame(wx.Frame):
     def make_menu_bar(self):
         helpMenu = wx.Menu()
         aboutItem = helpMenu.Append(wx.ID_ABOUT)
+        websiteItem = helpMenu.Append(10000, "Visit ManyKey.org for Documentation")
         menuBar = wx.MenuBar()
         menuBar.Append(helpMenu, "&Help")
         self.SetMenuBar(menuBar)
         self.Bind(wx.EVT_MENU, self.on_about, aboutItem)
+        self.Bind(wx.EVT_MENU, self.launch_website, websiteItem)
 
 
     def on_about(self, event):
-        wx.MessageBox("WIP (Unversioned)",
+        wx.MessageBox("Version {}\nManyKey.org".format(VERSION),
                       "ManyKey Writer",
                       wx.OK|wx.ICON_INFORMATION)
+
+
+    def launch_website(self, event):
+        webbrowser.open("https://www.manykey.org", new=2)
 
 
     def serial_callback(self, class_name, data):
@@ -207,6 +201,6 @@ class GuiFrame(wx.Frame):
 
 if __name__ == '__main__':
     app = wx.App()
-    frm = GuiFrame(None, title='ManyKey Writer', size=(500,400))
+    frm = GuiFrame(None, title='ManyKey Writer', size=(500,300))
     frm.Show()
     app.MainLoop()

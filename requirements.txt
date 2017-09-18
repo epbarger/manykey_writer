@@ -2,3 +2,4 @@ six==1.10.0
 wxPython==4.0.0b1
 pyserial==3.3
 bidict==0.13.1
+desktop==0.4.2
