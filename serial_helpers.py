@@ -3,6 +3,8 @@ import serial
 import serial.tools.list_ports
 import bidict
 import time
+import wx
+from wx.lib.pubsub import pub
 
 KEY_TO_HEX_BIDICT = bidict.orderedbidict({
     "LEFT_CTRL": 0x80,
@@ -44,131 +46,137 @@ KEY_TO_HEX_BIDICT = bidict.orderedbidict({
 })
 
 class SerialDevicesHelper(threading.Thread):
-    def __init__(self, gui):
+    def __init__(self):
         super(SerialDevicesHelper, self).__init__()
-        self.gui = gui
+        self.start()
 
     def run(self):
-        self.gui.devices = {}
-        self.gui.current_device = None
-        self.gui.device_select.Clear()
-        self.gui.device_select.Append("Select a Device")
-        for index, port in enumerate(serial.tools.list_ports.comports()):
-            device_label = "{} - {}".format(port.device, port.description)
-            self.gui.devices[device_label] = port.device
-            self.gui.device_select.Append(device_label)
+        try:
+            result = {}
+            for index, port in enumerate(serial.tools.list_ports.comports()):
+                device_label = "{} - {}".format(port.device, port.description)
+                result[device_label] = port.device
+            wx.CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=result )
+        except Exception:
+            wx.CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
 
 
 class SerialDeviceQueryHelper(threading.Thread):
-    def __init__(self, gui):
+    def __init__(self, port):
         super(SerialDeviceQueryHelper, self).__init__()
-        self.gui = gui
+        self.port = port
+        self.start()
 
     def run(self):
-        serial_connection = serial.Serial()
-        serial_connection.baudrate = 9600
-        serial_connection.port = self.gui.current_device
-        serial_connection.open()
-        if serial_connection.is_open:
-            serial_connection.write(bytearray([0xEE, 0x02, 0xFF]))
-
-            response = []
-            while (len(response) == 0 or response[-1] != b'\xff'):
-                byte = serial_connection.read()
-                response.append(byte)
-            self.gui.switch_count = response[2][0]
-            self.gui.max_keys = response[3][0]
-            self.gui.write_button.Enable()
-            self.gui.read_button.Enable()
-            self.gui.SetStatusText("Connected ({} switches, {} keys per switch)".format(self.gui.switch_count, self.gui.max_keys))  
-            
-            if self.gui.keys_edit.CountCharacters(0,100) == 0:
-                read_helper = SerialDeviceReadHelper(self.gui)
-                read_helper.start()
-                read_helper.join()
-        else:
-            self.gui.SetStatusText("Connection failed") 
-        serial_connection.close()
-
-
-class SerialDeviceReadHelper(threading.Thread):
-    def __init__(self, gui):
-        super(SerialDeviceReadHelper, self).__init__()
-        self.gui = gui
-
-    def run(self):
-        serial_connection = serial.Serial()
-        serial_connection.baudrate = 9600
-        serial_connection.port = self.gui.current_device
-        serial_connection.open()
-        if serial_connection.is_open:
-            keys_edit = []
-            for switch_index in range(0, self.gui.switch_count):
-                serial_connection.write(bytearray([0xEE, 0x00, switch_index, 0xFF]))
+        try:
+            result = { 'switch_count': None, 'max_keys': None }
+            serial_connection = serial.Serial()
+            serial_connection.baudrate = 9600
+            serial_connection.port = self.port
+            serial_connection.open()
+            if serial_connection.is_open:
+                serial_connection.write(bytearray([0xEE, 0x02, 0xFF]))
                 response = []
                 while (len(response) == 0 or response[-1] != b'\xff'):
                     byte = serial_connection.read()
                     response.append(byte)
-                # print("read_response: {}".format(response))
-                converted_chars = []
-                for char in response[3:len(response)-1]:
-                    if char[0] >= 33 and char[0] <= 126:
-                        converted_chars.append(chr(char[0]))
+                result['switch_count'] = response[2][0]
+                result['max_keys'] = response[3][0]
+                wx.CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=result)        
+            else:
+                raise Exception("serial_connection is closed")
+            serial_connection.close()
+        except Exception:
+            wx.CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
+
+
+
+class SerialDeviceReadHelper(threading.Thread):
+    def __init__(self, port, switch_count):
+        super(SerialDeviceReadHelper, self).__init__()
+        self.port = port
+        self.switch_count = switch_count
+        self.start()
+
+    def run(self):
+        try:
+            serial_connection = serial.Serial()
+            serial_connection.baudrate = 9600
+            serial_connection.port = self.port
+            serial_connection.open()
+            if serial_connection.is_open:
+                keys_edit = []
+                for switch_index in range(0, self.switch_count):
+                    serial_connection.write(bytearray([0xEE, 0x00, switch_index, 0xFF]))
+                    response = []
+                    while (len(response) == 0 or response[-1] != b'\xff'):
+                        byte = serial_connection.read()
+                        response.append(byte)
+                    converted_chars = []
+                    for char in response[3:len(response)-1]:
+                        if char[0] >= 33 and char[0] <= 126:
+                            converted_chars.append(chr(char[0]))
+                        else:
+                            try:
+                                converted_chars.append(KEY_TO_HEX_BIDICT.inv[char[0]])
+                            except KeyError:
+                                continue
+                    if len(converted_chars) == 0:
+                        keys_edit.append(" ")
                     else:
-                        try:
-                            converted_chars.append(KEY_TO_HEX_BIDICT.inv[char[0]])
-                        except KeyError:
-                            continue
-                if len(converted_chars) == 0:
-                    keys_edit.append(" ")
-                else:
-                    keys_edit.append(" ".join(converted_chars))
-                    
-            keys_edit = "\n".join(keys_edit)
-            self.gui.keys_edit.SetText(keys_edit)
-        else:
-            self.gui.SetStatusText("Connection failed")
-        serial_connection.close()
+                        keys_edit.append(" ".join(converted_chars))
+                        
+                keys_edit = "\n".join(keys_edit)
+                wx.CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=keys_edit)
+            else:
+                raise Exception("serial_connection is closed")
+            serial_connection.close()
+        except Exception:
+            wx.CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
 
 
 class SerialDeviceWriteHelper(threading.Thread):
-    def __init__(self, gui):
+    def __init__(self, port, keys_edit, switch_count, max_keys):
         super(SerialDeviceWriteHelper, self).__init__()
-        self.gui = gui
+        self.port = port
+        self.keys_edit = keys_edit
+        self.switch_count = switch_count
+        self.max_keys = max_keys
+        self.start()
 
     def run(self):
-        serial_connection = serial.Serial()
-        serial_connection.baudrate = 9600
-        serial_connection.port = self.gui.current_device
-        serial_connection.open()
-        if serial_connection.is_open:
-            key_lines = self.gui.keys_edit.GetValue().splitlines()
-            while len(key_lines) < self.gui.switch_count:
-                key_lines.append('')
-            for index, key_list in enumerate(key_lines):
-                serial_request = [0xEE, 0x01, index]
-                for index, key in enumerate(key_list.split()):
-                    if index >= self.gui.max_keys:
-                        break
+        try:
+            serial_connection = serial.Serial()
+            serial_connection.baudrate = 9600
+            serial_connection.port = self.port
+            serial_connection.open()
+            if serial_connection.is_open:
+                key_lines = self.keys_edit.splitlines()
+                while len(key_lines) < self.switch_count:
+                    key_lines.append('')
+                for index, key_list in enumerate(key_lines):
+                    serial_request = [0xEE, 0x01, index]
+                    for index, key in enumerate(key_list.split()):
+                        if index >= self.max_keys:
+                            break
 
-                    if len(key) > 1:
-                        try:
-                            serial_request.append(KEY_TO_HEX_BIDICT[key])
-                        except KeyError:
-                            continue
-                    elif ord(key) >= 33 and ord(key) <= 126:
-                        serial_request.append(ord(key))
-                    # else:
-                        # print("unrecognized character")
-                serial_request.append(0xFF)
-                serial_connection.write(bytearray(serial_request))
-                # print("write {}".format(serial_request))
-                time.sleep(0.1)
-                serial_connection.reset_input_buffer()
+                        if len(key) > 1:
+                            try:
+                                serial_request.append(KEY_TO_HEX_BIDICT[key])
+                            except KeyError:
+                                continue
+                        elif ord(key) >= 33 and ord(key) <= 126:
+                            serial_request.append(ord(key))
 
-            read_helper = SerialDeviceReadHelper(self.gui)
-            read_helper.start()
-            read_helper.join()
-        else:
-            self.gui.SetStatusText("Connection failed") 
-        serial_connection.close()
+                    serial_request.append(0xFF)
+                    serial_connection.write(bytearray(serial_request))
+                    time.sleep(0.1)
+                    serial_connection.reset_input_buffer()
+
+                wx.CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=True)
+            else:
+                raise Exception("serial_connection is closed")
+            serial_connection.close()
+        except Exception:
+            wx.CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
+

@@ -5,7 +5,7 @@ ManyKey Writer
 
 import wx
 import wx.stc
-
+from wx.lib.pubsub import pub
 from serial_helpers import *
 
 class GuiFrame(wx.Frame):
@@ -19,6 +19,7 @@ class GuiFrame(wx.Frame):
         self.devices = {}
         self.line_count = None
 
+        pub.subscribe(self.serial_callback, "serial")
 
         self.CreateStatusBar()
         self.main_panel = wx.Panel(self)
@@ -106,6 +107,7 @@ class GuiFrame(wx.Frame):
         self.SetStatusText("No device connected")
         self.disconnect_device()
 
+
     def disconnect_device(self):
         self.write_button.Disable()
         self.read_button.Disable()
@@ -114,7 +116,11 @@ class GuiFrame(wx.Frame):
 
     def refresh_devices(self, event):
         self.SetStatusText("No device connected")
-        SerialDevicesHelper(self).start()
+        self.devices = {}
+        self.current_device = None
+        self.device_select.Clear()
+        self.device_select.Append("Select a Device")
+        SerialDevicesHelper()
 
 
     def select_device(self, event):
@@ -123,7 +129,7 @@ class GuiFrame(wx.Frame):
             device = self.devices[self.device_select.GetStringSelection()]
             self.current_device = device
             self.SetStatusText("Connecting to {}...".format(device))
-            SerialDeviceQueryHelper(self).start()
+            SerialDeviceQueryHelper(device)
 
         except KeyError:
             self.SetStatusText("No device connected")
@@ -131,7 +137,7 @@ class GuiFrame(wx.Frame):
 
 
     def read_device_keys(self, event):
-        SerialDeviceReadHelper(self).start()
+        SerialDeviceReadHelper(self.current_device, self.switch_count)
 
 
     def clear_keys(self, event):
@@ -139,12 +145,10 @@ class GuiFrame(wx.Frame):
         for index in range(0, self.switch_count - 1):
             newlines.append("\n")
         self.keys_edit.SetText("".join(newlines))
-        # self.keys_edit.MarginSetText(0, "Switch 0")
-        # self.keys_edit.MarginSetStyle(0, 1)
 
 
     def write_keys(self, event):
-        SerialDeviceWriteHelper(self).start()
+        SerialDeviceWriteHelper(self.current_device, self.keys_edit.GetValue(), self.switch_count, self.max_keys)
 
 
     def update_margins(self, event):
@@ -171,6 +175,34 @@ class GuiFrame(wx.Frame):
         wx.MessageBox("WIP (Unversioned)",
                       "ManyKey Writer",
                       wx.OK|wx.ICON_INFORMATION)
+
+
+    def serial_callback(self, class_name, data):
+        if class_name == 'ConnectionError':
+            self.SetStatusText("Connection error occured")
+            d = wx.MessageDialog(self, "Please check your device and try again", "An Error Occurred", wx.OK | wx.ICON_ERROR)
+            d.ShowModal()
+            d.Destroy()
+        elif class_name == 'SerialDevicesHelper':
+            self.devices = data
+            for label in data.keys():
+                self.device_select.Append(label)
+        elif class_name == 'SerialDeviceQueryHelper':
+            self.switch_count = data['switch_count']
+            self.max_keys = data['max_keys']
+            self.write_button.Enable()
+            self.read_button.Enable()
+            self.SetStatusText("Connected ({} switches, {} keys per switch)".format(self.switch_count, self.max_keys))  
+            if self.keys_edit.CountCharacters(0,100) == 0:
+                SerialDeviceReadHelper(self.current_device, self.switch_count)
+        elif class_name == 'SerialDeviceReadHelper':
+            self.keys_edit.SetText(data)
+            self.SetStatusText("Connected ({} switches, {} keys per switch)".format(self.switch_count, self.max_keys))
+        elif class_name == 'SerialDeviceWriteHelper':
+            self.read_device_keys(None)
+            d = wx.MessageDialog(self, "New key configuration was saved to device", "Successfully Wrote Keys", wx.OK | wx.ICON_NONE )
+            d.ShowModal()
+            d.Destroy()
 
 
 if __name__ == '__main__':
