@@ -32,6 +32,6 @@ coll = COLLECT(exe,
                upx=True,
                name='manykey')
 app = BUNDLE(coll,
-             name='manykey.app',
+             name='ManyKey Writer.app',
              icon=None,
              bundle_identifier=None)

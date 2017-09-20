@@ -3,8 +3,8 @@ import serial
 import serial.tools.list_ports
 import bidict
 import time
-import wx
-from wx.lib.pubsub import pub
+from wx import CallAfter
+from pubsub import pub
 
 KEY_TO_HEX_BIDICT = bidict.orderedbidict({
     "LEFT_CTRL": 0x80,
@@ -56,9 +56,9 @@ class SerialDevicesHelper(threading.Thread):
             for index, port in enumerate(serial.tools.list_ports.comports()):
                 device_label = "{} - {}".format(port.device, port.description)
                 result[device_label] = port.device
-            wx.CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=result )
+            CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=result )
         except Exception:
-            wx.CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
+            CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
 
 
 class SerialDeviceQueryHelper(threading.Thread):
@@ -82,12 +82,12 @@ class SerialDeviceQueryHelper(threading.Thread):
                     response.append(byte)
                 result['switch_count'] = response[2][0]
                 result['max_keys'] = response[3][0]
-                wx.CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=result)        
+                CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=result)        
             else:
                 raise Exception("serial_connection is closed")
             serial_connection.close()
         except Exception:
-            wx.CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
+            CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
 
 
 
@@ -127,12 +127,12 @@ class SerialDeviceReadHelper(threading.Thread):
                         keys_edit.append(" ".join(converted_chars))
                         
                 keys_edit = "\n".join(keys_edit)
-                wx.CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=keys_edit)
+                CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=keys_edit)
             else:
                 raise Exception("serial_connection is closed")
             serial_connection.close()
         except Exception:
-            wx.CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
+            CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
 
 
 class SerialDeviceWriteHelper(threading.Thread):
@@ -173,10 +173,10 @@ class SerialDeviceWriteHelper(threading.Thread):
                     time.sleep(0.1)
                     serial_connection.reset_input_buffer()
 
-                wx.CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=True)
+                CallAfter(pub.sendMessage, "serial", class_name=type(self).__name__, data=True)
             else:
                 raise Exception("serial_connection is closed")
             serial_connection.close()
         except Exception:
-            wx.CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
+            CallAfter(pub.sendMessage, "serial", class_name="ConnectionError", data=None)
 

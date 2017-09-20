@@ -6,7 +6,7 @@ ManyKey Writer
 import wx
 import wx.stc
 import webbrowser
-from wx.lib.pubsub import pub
+from pubsub import pub
 from serial_helpers import *
 
 VERSION = "0.1 (Alpha)"
@@ -201,6 +201,6 @@ class GuiFrame(wx.Frame):
 
 if __name__ == '__main__':
     app = wx.App()
-    frm = GuiFrame(None, title='ManyKey Writer', size=(500,300))
+    frm = GuiFrame(None, title='ManyKey Writer', size=(400,300))
     frm.Show()
     app.MainLoop()
