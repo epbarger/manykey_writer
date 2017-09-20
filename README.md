@@ -1,7 +1,7 @@
 # ManyKey Writer
 A WIP wxPython-based GUI to write key configuration to serial devices using the ManyKey protocol. 
 
-![ManyKey Writer Screenshot](https://www.manykey.org/img/writer_ss.png)
+![ManyKey Writer Screenshot](https://www.manykey.org/img/writer_ss.png?u=1)
 
 ## Key Codes
 Any basic character ascii character you can type with an english language keyboard (without modifiers) should work as a keycode. For other keys, see the list below.
