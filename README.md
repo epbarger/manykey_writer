@@ -1,5 +1,5 @@
 # ManyKey Writer
-A WIP wxPython-based GUI to write key configuration to serial devices using the ManyKey protocol. 
+A wxPython-based GUI to write key configuration to serial devices using the ManyKey protocol. 
 
 ![ManyKey Writer Screenshot](https://www.manykey.org/img/writer_ss.png?u=1)
 
