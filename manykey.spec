@@ -34,4 +34,5 @@ coll = COLLECT(exe,
 app = BUNDLE(coll,
              name='ManyKey Writer.app',
              icon='manykeysquare.icns',
-             bundle_identifier=None)
+             bundle_identifier=None,
+             info_plist={'NSHighResolutionCapable': 'True'})
