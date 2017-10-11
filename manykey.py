@@ -9,7 +9,7 @@ import webbrowser
 from pubsub import pub
 from serial_helpers import *
 
-VERSION = "0.1 (Alpha)"
+VERSION = "0.11 (Alpha)"
 
 class GuiFrame(wx.Frame):
     def __init__(self, *args, **kw):
