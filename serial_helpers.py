@@ -7,6 +7,9 @@ from wx import CallAfter
 from pubsub import pub
 
 KEY_TO_HEX_BIDICT = bidict.orderedbidict({
+    "LEFT_MOUSE": 0x01,
+    "RIGHT_MOUSE": 0x02,
+    "MIDDLE_MOUSE": 0x03,
     "LEFT_CTRL": 0x80,
     "LEFT_SHIFT": 0x81,
     "LEFT_ALT": 0x82,

@@ -41,3 +41,4 @@ Any basic character ascii character you can type with an english language keyboa
 - F11
 - F12
 - SPACE
+
