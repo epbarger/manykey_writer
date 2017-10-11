@@ -5,6 +5,9 @@ A wxPython-based GUI to write key configuration to serial devices using the Many
 
 ## Key Codes
 Any basic character ascii character you can type with an english language keyboard (without modifiers) should work as a keycode. For other keys, see the list below.
+- LEFT_MOUSE
+- RIGHT_MOUSE
+- MIDDLE_MOUSE
 - LEFT_CTRL
 - LEFT_SHIFT
 - LEFT_ALT
